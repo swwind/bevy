@@ -4,7 +4,7 @@ use crate::{
     SetMeshViewBindGroup, Shadow,
 };
 use bevy_app::{App, Plugin};
-use bevy_asset::{AddAsset, AssetEvent, AssetServer, Assets, Handle};
+use bevy_asset::{AddAsset, AssetEvent, Assets, Handle};
 use bevy_core_pipeline::{
     core_3d::{AlphaMask3d, Opaque3d, Transparent3d},
     prepass::NormalPrepass,
@@ -317,22 +317,18 @@ where
 
 impl<M: Material> FromWorld for MaterialPipeline<M> {
     fn from_world(world: &mut World) -> Self {
-        let asset_server = world.resource::<AssetServer>();
+        let vertex_shader = M::vertex_shader().into_shader(world);
+        let fragment_shader = M::fragment_shader().into_shader(world);
+
         let render_device = world.resource::<RenderDevice>();
+        let material_layout = M::bind_group_layout(render_device);
+        let mesh_pipeline = world.resource::<MeshPipeline>().clone();
 
         MaterialPipeline {
-            mesh_pipeline: world.resource::<MeshPipeline>().clone(),
-            material_layout: M::bind_group_layout(render_device),
-            vertex_shader: match M::vertex_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
-            fragment_shader: match M::fragment_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
+            mesh_pipeline,
+            material_layout,
+            vertex_shader,
+            fragment_shader,
             marker: PhantomData,
         }
     }

@@ -1,6 +1,7 @@
 use super::ShaderDefVal;
 use crate::define_atomic_id;
-use bevy_asset::{AssetLoader, AssetPath, Handle, LoadContext, LoadedAsset};
+use bevy_asset::{AssetLoader, AssetPath, AssetServer, Assets, Handle, LoadContext, LoadedAsset};
+use bevy_ecs::world::World;
 use bevy_reflect::TypeUuid;
 use bevy_utils::{tracing::error, BoxedFuture, HashMap};
 #[cfg(feature = "shader_format_glsl")]
@@ -799,6 +800,25 @@ pub enum ShaderRef {
     Handle(Handle<Shader>),
     /// An asset path leading to a shader
     Path(AssetPath<'static>),
+    /// Raw shader
+    Shader(Shader),
+}
+
+impl ShaderRef {
+    pub fn into_shader(self, world: &mut World) -> Option<Handle<Shader>> {
+        match self {
+            ShaderRef::Default => None,
+            ShaderRef::Handle(handle) => Some(handle),
+            ShaderRef::Path(path) => {
+                let asset_server = world.resource::<AssetServer>();
+                Some(asset_server.load(path))
+            }
+            ShaderRef::Shader(shader) => {
+                let mut shaders = world.resource_mut::<Assets<Shader>>();
+                Some(shaders.add(shader))
+            }
+        }
+    }
 }
 
 impl From<Handle<Shader>> for ShaderRef {
@@ -816,6 +836,12 @@ impl From<AssetPath<'static>> for ShaderRef {
 impl From<&'static str> for ShaderRef {
     fn from(path: &'static str) -> Self {
         Self::Path(AssetPath::from(path))
+    }
+}
+
+impl From<Shader> for ShaderRef {
+    fn from(shader: Shader) -> Self {
+        Self::Shader(shader)
     }
 }
 

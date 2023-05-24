@@ -1,5 +1,5 @@
 use bevy_app::{Plugin, PreUpdate, Update};
-use bevy_asset::{load_internal_asset, AssetServer, Handle, HandleUntyped};
+use bevy_asset::{load_internal_asset, Handle, HandleUntyped};
 use bevy_core_pipeline::{
     prelude::Camera3d,
     prepass::{
@@ -32,8 +32,8 @@ use bevy_render::{
         BindGroupLayoutEntry, BindingResource, BindingType, BlendState, BufferBindingType,
         ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState,
         DynamicUniformBuffer, Extent3d, FragmentState, FrontFace, MultisampleState, PipelineCache,
-        PolygonMode, PrimitiveState, RenderPipelineDescriptor, Shader, ShaderDefVal, ShaderRef,
-        ShaderStages, ShaderType, SpecializedMeshPipeline, SpecializedMeshPipelineError,
+        PolygonMode, PrimitiveState, RenderPipelineDescriptor, Shader, ShaderDefVal, ShaderStages,
+        ShaderType, SpecializedMeshPipeline, SpecializedMeshPipelineError,
         SpecializedMeshPipelines, StencilFaceState, StencilState, TextureDescriptor,
         TextureDimension, TextureSampleType, TextureUsages, TextureViewDimension, VertexState,
     },
@@ -238,8 +238,10 @@ pub struct PrepassPipeline<M: Material> {
 
 impl<M: Material> FromWorld for PrepassPipeline<M> {
     fn from_world(world: &mut World) -> Self {
+        let material_vertex_shader = M::prepass_vertex_shader().into_shader(world);
+        let material_fragment_shader = M::prepass_fragment_shader().into_shader(world);
+
         let render_device = world.resource::<RenderDevice>();
-        let asset_server = world.resource::<AssetServer>();
 
         let view_layout_motion_vectors =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -317,16 +319,8 @@ impl<M: Material> FromWorld for PrepassPipeline<M> {
             view_layout_no_motion_vectors,
             mesh_layout: mesh_pipeline.mesh_layout.clone(),
             skinned_mesh_layout: mesh_pipeline.skinned_mesh_layout.clone(),
-            material_vertex_shader: match M::prepass_vertex_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
-            material_fragment_shader: match M::prepass_fragment_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
+            material_vertex_shader,
+            material_fragment_shader,
             material_layout: M::bind_group_layout(render_device),
             material_pipeline: world.resource::<MaterialPipeline<M>>().clone(),
             _marker: PhantomData,
